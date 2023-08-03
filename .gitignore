@@ -1,2 +1,5 @@
 examples/metaphor/metaphor_results
-examples
+examples 
+*.pyc
+__pycache__/
+

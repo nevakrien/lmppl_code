@@ -7,16 +7,16 @@
 >>> print(scores)
 [128.80070356559577, 100.5730992106926]
 """
-
 import os
 import logging
 import gc
-from math import exp
+#from math import exp
 from typing import List
 from tqdm import tqdm
 
 import transformers
 import torch
+import numpy as np
 
 from .util import internet_connection
 
@@ -96,7 +96,7 @@ class LM:
         self.model.eval()
         logging.info(f'\t * model is loaded on: {self.device}')
 
-    def get_perplexity(self, input_texts: str or List, batch: int = None):
+    def get_perplexity(self, input_texts: str or List,lex_count:int, batch: int = None):
         """ Compute the perplexity on recurrent LM.
 
         :param input_texts: A string or list of input texts for the encoder.
@@ -134,14 +134,16 @@ class LM:
 
                 # Shift so that tokens < n predict n
                 shift_logits = logit[..., :-1, :].contiguous()
-                shift_label = label[:, 1:].contiguous()
+                shift_label = label[:, 1:].contiguous().to(self.device) #sorry for this
 
                 # compute loss
-                valid_length = (shift_label != PAD_TOKEN_LABEL_ID).sum(dim=-1)
+                #valid_length = (shift_label != PAD_TOKEN_LABEL_ID).sum(dim=-1)
+                #print(shift_logits.view(-1, shift_logits.size(-1)).device)
+                #print( shift_label.view(-1).device)
                 loss = self.loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_label.view(-1))
                 loss = loss.view(len(output['logits']), -1)
-                loss = torch.sum(loss, -1) / valid_length
-                loss_list += loss.cpu().tolist()
+                loss = torch.sum(loss) #/ valid_length
+                loss_list.append(loss.cpu().tolist())
 
                 if FORCE_RESET:
                     del model_inputs
@@ -151,8 +153,8 @@ class LM:
                     torch.cuda.empty_cache()
 
         # conversion to perplexity
-        ppl = [exp(i) for i in loss_list]
-        return ppl[0] if single_input else ppl
+        #ppl = [exp(i) for i in loss_list]
+        return np.exp(np.sum(loss_list)/lex_count)#ppl[0] if single_input else ppl
 
 
 if __name__ == '__main__':

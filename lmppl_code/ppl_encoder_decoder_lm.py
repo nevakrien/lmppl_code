@@ -10,12 +10,14 @@
 import os
 import logging
 import gc
-from math import exp
+#from math import exp
 from typing import List
 
 from tqdm import tqdm
 import torch
 import transformers
+
+import numpy as np
 
 from .util import internet_connection
 
@@ -135,7 +137,7 @@ class EncoderDecoderLM:
         self.model.eval()
         logging.info(f'\t * model is loaded on: {self.device}')
 
-    def get_perplexity(self, input_texts: str or List, output_texts: str or List, batch: int = None):
+    def get_perplexity(self, input_texts: str or List, output_texts: str or List,lex_count:int, batch: int = None):
         """ Compute the perplexity on decoder of the seq2seq model.
 
         :param input_texts: A string or list of input texts for the encoder.
@@ -186,11 +188,11 @@ class EncoderDecoderLM:
                 logits = output['logits']
                 if self.pad_token_initialized:
                     logits = logits[:, :, :-1]
-                valid_length = (model_inputs["labels"] != PAD_TOKEN_LABEL_ID).sum(dim=-1)
+                #valid_length = (model_inputs["labels"] != PAD_TOKEN_LABEL_ID).sum(dim=-1)
                 loss = self.loss_fct(logits.view(-1, self.config.vocab_size), model_inputs["labels"].view(-1))
                 loss = loss.view(len(logits), -1)
-                loss = torch.sum(loss, -1) / valid_length
-                loss_list += loss.cpu().tolist()
+                loss = torch.sum(loss) #/ valid_length
+                loss_list.append(loss.cpu().tolist())
 
                 if FORCE_RESET:
                     del model_inputs
@@ -200,8 +202,9 @@ class EncoderDecoderLM:
                     torch.cuda.empty_cache()
 
         # conversion to perplexity
-        ppl = [exp(i) for i in loss_list]
-        return ppl[0] if single_input else ppl
+        #ppl = [exp(i) for i in loss_list]
+        #return ppl[0] if single_input else ppl
+        return np.exp(np.sum(loss_list)/lex_count)
 
 
 if __name__ == '__main__':
