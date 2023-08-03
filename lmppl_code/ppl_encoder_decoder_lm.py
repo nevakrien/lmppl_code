@@ -179,7 +179,7 @@ class EncoderDecoderLM:
                 if self.max_length_decoder is not None:
                     output_encode = self.tokenizer(text_target=output_texts[s:e], return_tensors='pt', padding='max_length', truncation=True, max_length=self.max_length_decoder)
                 else:
-                    output_encode = self.tokenizer(text_target=output_texts[s:e], return_tensors='pt', padding=True, truncation=False)
+                    output_encode = self.tokenizer(text=output_texts[s:e], return_tensors='pt', padding=True, truncation=False)
 
                 # shift the label sequence for causal inference
                 label = output_encode["input_ids"]
