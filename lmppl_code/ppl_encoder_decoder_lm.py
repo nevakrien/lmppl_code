@@ -77,6 +77,8 @@ class EncoderDecoderLM:
 
     def __init__(self,
                  model: str = 't5-small',
+                 tokenizer=None,
+                 model_obj=None,
                  use_auth_token: bool = False,
                  max_length_encoder: int = None,
                  max_length_decoder: int = None,
@@ -98,10 +100,17 @@ class EncoderDecoderLM:
 
         # load model
         self.device_map = device_map
-        self.tokenizer, self.model, self.config = get_lm(
-            model, use_auth_token=use_auth_token, torch_dtype=torch_dtype, device_map=self.device_map,
-            low_cpu_mem_usage=low_cpu_mem_usage, hf_cache_dir=hf_cache_dir, trust_remote_code=trust_remote_code,
-            offload_folder=offload_folder)
+
+        if model_obj==None and tokenizer==None:
+            self.tokenizer, self.model, self.config = get_lm(
+                model, use_auth_token=use_auth_token, torch_dtype=torch_dtype, device_map=self.device_map,
+                low_cpu_mem_usage=low_cpu_mem_usage, hf_cache_dir=hf_cache_dir, trust_remote_code=trust_remote_code,
+                offload_folder=offload_folder)
+
+        else:
+            self.tokenizer=tokenizer
+            self.model=model_obj
+            self.config=self.model.config
 
         self.pad_token_initialized = False
         if self.tokenizer.pad_token is None:

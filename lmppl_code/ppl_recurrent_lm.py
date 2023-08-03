@@ -32,6 +32,8 @@ class LM:
 
     def __init__(self,
                  model: str = 'gpt2',
+                 tokenizer=None,
+                 model_obj=None,
                  use_auth_token: bool = False,
                  max_length: int = None,
                  num_gpus: int = None,
@@ -44,28 +46,35 @@ class LM:
         """ Language Model.
 
         @param model: Model alias or path to local model file.
+        @param tokenizer: Optional tokenizer object. If None, it will be loaded from the model path.
+        @param model_obj: Optional model object. If None, it will be loaded from the model path.
         @param use_auth_token: Huggingface transformers argument of `use_auth_token`
         @param device: Device name to load the models.
         @param num_gpus: Number of gpus to be used.
         """
-        logging.info(f'Loading Model: `{model}`')
+        
+        if tokenizer is None and model_obj is None:
+            logging.info(f'Loading Model: `{model}`')
 
-        # load model
-        params = {"local_files_only": not internet_connection(), "use_auth_token": use_auth_token,
-                  "trust_remote_code": trust_remote_code}
-        if hf_cache_dir is not None:
-            params["cache_dir"] = hf_cache_dir
-        if offload_folder is not None:
-            params["offload_folder"] = offload_folder
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(model, **params)
-        self.config = transformers.AutoConfig.from_pretrained(model, **params)
+            # load model
+            params = {"local_files_only": not internet_connection(), "use_auth_token": use_auth_token,
+                      "trust_remote_code": trust_remote_code}
+            if hf_cache_dir is not None:
+                params["cache_dir"] = hf_cache_dir
+            if offload_folder is not None:
+                params["offload_folder"] = offload_folder
 
-        params.update({"config": self.config, "low_cpu_mem_usage": low_cpu_mem_usage})
-        if torch_dtype is not None:
-            params['torch_dtype'] = torch_dtype
-        if device_map is not None:
-            params['device_map'] = device_map
-        self.model = transformers.AutoModelForCausalLM.from_pretrained(model, **params)
+            self.tokenizer = transformers.AutoTokenizer.from_pretrained(model, **params)
+            self.config = transformers.AutoConfig.from_pretrained(model, **params)
+            params.update({"config": self.config, "low_cpu_mem_usage": low_cpu_mem_usage})
+            if torch_dtype is not None:
+                params['torch_dtype'] = torch_dtype
+            if device_map is not None:
+                params['device_map'] = device_map
+            self.model = transformers.AutoModelForCausalLM.from_pretrained(model, **params)
+        else:
+            self.tokenizer = tokenizer
+            self.model = model_obj
 
         self.pad_token_initialized = False
         if self.tokenizer.pad_token is None:
@@ -95,6 +104,7 @@ class LM:
                 self.device = self.model.module.device
         self.model.eval()
         logging.info(f'\t * model is loaded on: {self.device}')
+
 
     def get_perplexity(self, input_texts: str or List,lex_count:int, batch: int = None):
         """ Compute the perplexity on recurrent LM.
